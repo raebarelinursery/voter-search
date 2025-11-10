@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raebareli Voter Search</title>
+<style>
+  body {
+    font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial;
+    background: #f9f9f9;
+    color: #222;
+    margin: 0 auto;
+    max-width: 1000px;
+    padding: 20px;
+  }
+  h1 { font-size: 20px; margin-bottom: 10px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
+  input[type="text"] { padding: 8px; width: 280px; }
+  button { padding: 8px 12px; cursor: pointer; border: 1px solid #ccc; background: #eee; border-radius: 4px; }
+  button:hover { background: #e2e2e2; }
+  .stations { max-height: 220px; overflow-y: auto; border: 1px solid #ddd; background: #fff; padding: 8px; width: 300px; }
+  .results { flex: 1; background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 4px; }
+  .station-block { border-bottom: 1px solid #eee; margin-bottom: 15px; padding-bottom: 8px; }
+  .voter { padding: 6px 4px; border-bottom: 1px dashed #f0f0f0; }
+  .voter:last-child { border-bottom: none; }
+  .top-btn { position: fixed; right: 20px; bottom: 20px; padding: 10px 12px; border-radius: 8px; background: #333; color: #fff; border: none; font-size: 14px; }
+  @media (max-width: 600px) {
+    .layout { flex-direction: column; }
+    .stations, input[type="text"] { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1>Raebareli Voter Search</h1>
+
+<div class="controls">
+  <input id="searchInput" type="text" placeholder="Search by name or father/husband name">
+  <button id="selectAllBtn">Select all</button>
+  <button id="clearAllBtn">Clear all</button>
+</div>
+
+<div class="layout" style="display:flex; gap:18px; align-items:flex-start;">
+  <div>
+    <div style="font-weight:600; margin-bottom:6px;">Polling Stations</div>
+    <div id="stationsList" class="stations">Loading...</div>
+  </div>
+
+  <div class="results" id="results">Loading voter data...</div>
+</div>
+
+<button class="top-btn" id="moveTop">Move to Top ↑</button>
+
+<script>
+let allData = [];
+let stationsIndex = {};
+let selectedStations = new Set();
+
+// Load JSON
+fetch('voter_data_final.json')
+  .then(r => r.json())
+  .then(data => {
+    allData = data;
+    buildStationList();
+    renderResults();
+  })
+  .catch(err => {
+    document.getElementById('stationsList').innerText = '⚠️ Could not load voter_data_final.json';
+    document.getElementById('results').innerText = '';
+    console.error(err);
+  });
+
+function buildStationList() {
+  stationsIndex = {};
+  allData.forEach(rec => {
+    const st = rec.polling_station || 'unknown';
+    stationsIndex[st] = (stationsIndex[st] || 0) + 1;
+  });
+
+  const container = document.getElementById('stationsList');
+  container.innerHTML = '';
+  Object.keys(stationsIndex).sort().forEach(st => {
+    const id = 'chk_' + st;
+    const div = document.createElement('div');
+    div.innerHTML = `<label><input type="checkbox" id="${id}" data-st="${st}"> ${st} <small>(${stationsIndex[st]})</small></label>`;
+    container.appendChild(div);
+
+    document.getElementById(id).addEventListener('change', (e) => {
+      if (e.target.checked) selectedStations.add(st);
+      else selectedStations.delete(st);
+      renderResults();
+    });
+  });
+}
+
+document.getElementById('searchInput').addEventListener('input', () => renderResults());
+document.getElementById('selectAllBtn').addEventListener('click', () => {
+  Object.keys(stationsIndex).forEach(st => selectedStations.add(st));
+  document.querySelectorAll('#stationsList input[type=checkbox]').forEach(cb => cb.checked = true);
+  renderResults();
+});
+document.getElementById('clearAllBtn').addEventListener('click', () => {
+  selectedStations.clear();
+  document.querySelectorAll('#stationsList input[type=checkbox]').forEach(cb => cb.checked = false);
+  renderResults();
+});
+
+function renderResults() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const results = document.getElementById('results');
+  results.innerHTML = '';
+
+  const chosen = Array.from(selectedStations.size ? selectedStations : Object.keys(stationsIndex));
+  if (chosen.length === 0) { results.innerHTML = '<i>No polling station selected</i>'; return; }
+
+  chosen.forEach(st => {
+    const block = document.createElement('div');
+    block.className = 'station-block';
+    block.id = 'station_' + st;
+
+    const title = document.createElement('div');
+    title.innerHTML = `<strong>${st}</strong> — ${stationsIndex[st]} voters`;
+    block.appendChild(title);
+
+    const list = allData.filter(r => {
+      if ((r.polling_station || '') !== st) return false;
+      if (!q) return true;
+      const text = ((r.name || '') + ' ' + (r.father_or_husband || '')).toLowerCase();
+      return text.includes(q);
+    });
+
+    if (list.length === 0) {
+      const p = document.createElement('div');
+      p.style.opacity = 0.7;
+      p.innerText = 'No matches';
+      block.appendChild(p);
+    } else {
+      list.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'voter';
+        div.innerHTML = `<strong>${v.serial || ''}</strong>. ${escapeHtml(v.name || '')} — Father/Husband: ${escapeHtml(v.father_or_husband || '')} ${v.gender ? (' • ' + v.gender) : ''} ${v.age ? (' • Age ' + v.age) : ''} <span style="color:#555;">(Page ${v.pdf_page || ''})</span>`;
+        block.appendChild(div);
+      });
+    }
+    results.appendChild(block);
+  });
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+}
+
+document.getElementById('moveTop').addEventListener('click', () => {
+  document.querySelector('h1').scrollIntoView({behavior:'smooth'});
+});
+</script>
+</body>
+</html>
