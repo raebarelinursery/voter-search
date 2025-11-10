@@ -6,7 +6,7 @@
 <title>Raebareli Voter Search</title>
 <style>
   body {
-    font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
     background: #f9f9f9;
     color: #222;
     margin: 0 auto;
@@ -34,7 +34,7 @@
 <h1>Raebareli Voter Search</h1>
 
 <div class="controls">
-  <input id="searchInput" type="text" placeholder="Search by name or father/husband name">
+  <input id="searchInput" type="text" placeholder="Search by name or father/husband name (Hindi or English)">
   <button id="selectAllBtn">Select all</button>
   <button id="clearAllBtn">Clear all</button>
 </div>
@@ -55,7 +55,7 @@ let allData = [];
 let stationsIndex = {};
 let selectedStations = new Set();
 
-// Load JSON
+// === Load JSON data ===
 fetch('voter_data_final.json')
   .then(r => r.json())
   .then(data => {
@@ -69,6 +69,7 @@ fetch('voter_data_final.json')
     console.error(err);
   });
 
+// === Build polling-station checkbox list ===
 function buildStationList() {
   stationsIndex = {};
   allData.forEach(rec => {
@@ -104,8 +105,35 @@ document.getElementById('clearAllBtn').addEventListener('click', () => {
   renderResults();
 });
 
+// === English→Hindi transliteration map ===
+const translitMap = {
+  'a':'अ','aa':'आ','i':'इ','ii':'ई','u':'उ','uu':'ऊ','e':'ए','ai':'ऐ','o':'ओ','au':'औ',
+  'k':'क','kh':'ख','g':'ग','gh':'घ','ch':'च','j':'ज','jh':'झ','t':'त','th':'थ','d':'द','dh':'ध','n':'न',
+  'p':'प','ph':'फ','b':'ब','bh':'भ','m':'म','y':'य','r':'र','l':'ल','v':'व',
+  's':'स','sh':'श','h':'ह','ksh':'क्ष','gy':'ज्ञ'
+};
+
+function transliterate(input) {
+  let out = '';
+  let i = 0;
+  while (i < input.length) {
+    const two = input.slice(i, i+2).toLowerCase();
+    if (translitMap[two]) {
+      out += translitMap[two];
+      i += 2;
+    } else {
+      const one = input[i].toLowerCase();
+      out += translitMap[one] || input[i];
+      i++;
+    }
+  }
+  return out;
+}
+
+// === Main render function with bilingual search ===
 function renderResults() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const qHindi = transliterate(q);
   const results = document.getElementById('results');
   results.innerHTML = '';
 
@@ -124,8 +152,11 @@ function renderResults() {
     const list = allData.filter(r => {
       if ((r.polling_station || '') !== st) return false;
       if (!q) return true;
+
+      // Combine name + father/husband in both Hindi and transliterated search
       const text = ((r.name || '') + ' ' + (r.father_or_husband || '')).toLowerCase();
-      return text.includes(q);
+      const textHindi = transliterate(text);
+      return text.includes(q) || text.includes(qHindi) || textHindi.includes(q) || textHindi.includes(qHindi);
     });
 
     if (list.length === 0) {
@@ -145,6 +176,7 @@ function renderResults() {
   });
 }
 
+// === HTML escape utility ===
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 }
