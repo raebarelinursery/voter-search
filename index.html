@@ -138,7 +138,10 @@ function renderResults() {
   results.innerHTML = '';
 
   const chosen = Array.from(selectedStations.size ? selectedStations : Object.keys(stationsIndex));
-  if (chosen.length === 0) { results.innerHTML = '<i>No polling station selected</i>'; return; }
+  if (chosen.length === 0) { 
+    results.innerHTML = '<i>No polling station selected</i>'; 
+    return; 
+  }
 
   chosen.forEach(st => {
     const block = document.createElement('div');
@@ -153,10 +156,18 @@ function renderResults() {
       if ((r.polling_station || '') !== st) return false;
       if (!q) return true;
 
-      // Combine name + father/husband in both Hindi and transliterated search
-      const text = ((r.name || '') + ' ' + (r.father_or_husband || '')).toLowerCase();
-      const textHindi = transliterate(text);
-      return text.includes(q) || text.includes(qHindi) || textHindi.includes(q) || textHindi.includes(qHindi);
+      const combined = ((r.name || '') + ' ' + (r.father_or_husband || '')).toLowerCase();
+      const combinedHindi = transliterate(combined);
+
+      // --- Enhanced fuzzy bilingual match ---
+      return (
+        combined.includes(q) ||
+        combinedHindi.includes(q) ||
+        combined.includes(qHindi) ||
+        combinedHindi.includes(qHindi) ||
+        combined.startsWith(q) ||
+        combinedHindi.startsWith(qHindi)
+      );
     });
 
     if (list.length === 0) {
