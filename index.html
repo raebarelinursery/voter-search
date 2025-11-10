@@ -113,22 +113,68 @@ const translitMap = {
   's':'स','sh':'श','h':'ह','ksh':'क्ष','gy':'ज्ञ'
 };
 
+<script>
 function transliterate(input) {
-  let out = '';
-  let i = 0;
-  while (i < input.length) {
-    const two = input.slice(i, i+2).toLowerCase();
-    if (translitMap[two]) {
-      out += translitMap[two];
-      i += 2;
-    } else {
-      const one = input[i].toLowerCase();
-      out += translitMap[one] || input[i];
-      i++;
-    }
-  }
-  return out;
+  input = input.toLowerCase().trim();
+
+  // --- Normalize common Arabic/Urdu name variants ---
+  input = input
+    .replace(/mohd|mhd|moh|muh|md\b/g, "muhammad")
+    .replace(/muhammad|mohammad|mohamed|muhamad|muhammed|mohmmed/g, "मुहम्मद")
+    .replace(/ahmad|ahmed|ahamad|ahmad\b/g, "अहमद")
+    .replace(/rehman|rahman/g, "रहमान")
+    .replace(/ameen|amin/g, "अमीन")
+    .replace(/imran/g, "इमरान")
+    .replace(/rehan/g, "रिहान")
+    .replace(/faiz/g, "फ़ैज़")
+    .replace(/raja/g, "राजा")
+    .replace(/naseem|nasim/g, "नसीम")
+    .replace(/salman/g, "सलमान");
+
+  // --- Core phonetic transliteration (general Hindi map) ---
+  input = input
+    .replace(/sh/g, "श")
+    .replace(/kh/g, "ख")
+    .replace(/gh/g, "घ")
+    .replace(/ch/g, "च")
+    .replace(/th/g, "थ")
+    .replace(/dh/g, "ध")
+    .replace(/ph/g, "फ")
+    .replace(/bh/g, "भ")
+    .replace(/ee/g, "ई")
+    .replace(/ii/g, "ई")
+    .replace(/oo/g, "ऊ")
+    .replace(/ai/g, "ऐ")
+    .replace(/au/g, "औ")
+    .replace(/in\b/g, "ईन")
+    .replace(/een\b/g, "ईन")
+    .replace(/an/g, "अन")
+    .replace(/am/g, "अम")
+    .replace(/a/g, "अ")
+    .replace(/i/g, "इ")
+    .replace(/e/g, "ए")
+    .replace(/u/g, "उ")
+    .replace(/o/g, "ओ")
+    .replace(/b/g, "ब")
+    .replace(/m/g, "म")
+    .replace(/n/g, "न")
+    .replace(/r/g, "र")
+    .replace(/l/g, "ल")
+    .replace(/d/g, "द")
+    .replace(/t/g, "त")
+    .replace(/p/g, "प")
+    .replace(/f/g, "फ")
+    .replace(/h/g, "ह")
+    .replace(/s/g, "स")
+    .replace(/k/g, "क")
+    .replace(/g/g, "ग")
+    .replace(/y/g, "य")
+    .replace(/v/g, "व")
+    .replace(/j/g, "ज");
+
+  return input;
 }
+</script>
 
 // === Main render function with bilingual search ===
 function renderResults() {
